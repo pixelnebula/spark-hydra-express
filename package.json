@@ -30,6 +30,7 @@
     "helmet": "4.1.1",
     "hydra": "1.9.3",
     "moment": "2.29.3",
+    "q": "^1.5.1",
     "response-time": "2.3.2"
   },
   "devDependencies": {

@@ -6,22 +6,7 @@
 'use strict';
 
 const debug = require('debug')('hydra-express');
-
-const Promise = require('bluebird');
-Promise.config({
-  // Enables all warnings except forgotten return statements.
-  warnings: {
-    wForgottenReturn: false
-  }
-});
-
-Promise.series = (iterable, action) => {
-  return Promise.mapSeries(
-    iterable.map(action),
-    (value, index, _length) => value || iterable[index].name || null
-  );
-};
-
+const Q = require('q');
 const hydra = require('hydra');
 const Utils = hydra.getUtilsHelper();
 const ServerResponse = hydra.getServerResponseHelper();
@@ -66,7 +51,7 @@ class HydraExpress {
     this.testMode = false;
     this.appLogger = defaultLogger();
     this.registeredPlugins = [];
-    this.ready = new Promise();
+    this.ready = Q.defer();
   }
 
   /**
@@ -76,7 +61,9 @@ class HydraExpress {
    * @return {object} - Promise which will resolve when all plugins are registered
    */
   use(...plugins) {
-    return Promise.series(plugins, (plugin) => this._registerPlugin(plugin));
+    let proms = [];
+    _.each(plugins, (plugin) => proms.push(this._registerPlugin(plugin)));
+    return Q.all(proms);
   }
 
   /**
@@ -293,28 +280,36 @@ class HydraExpress {
   * @private
   * @return {undefined}
   */
-  start(resolve, _reject) {
+  start(resolve, reject) {
     let serviceInfo;
     return hydra.init(this.config, this.testMode)
-      .then((config) => {
-        this.config = config;
-        return Promise.series(this.registeredPlugins, (plugin) => plugin.setConfig(config));
-      })
-      .then(() => hydra.registerService())
-      .then((_serviceInfo) => {
-        serviceInfo = _serviceInfo;
-        this.initService();
-        return Promise.series(this.registeredPlugins, (plugin) => plugin.onServiceReady());
-      })
-      .then(() => {
-        resolve(serviceInfo);
-        this.ready.resolve();
-      })
-      .catch((err) => {
-        this.ready.reject(err);
-        process.emit('cleanup');
-        reject(err);
+    .then((config) => {
+      this.config = config;
+      let proms = [];
+      this.registeredPlugins.forEach(plugin => {
+        proms.push(plugin.setConfig(config));
       });
+      return Q.all(proms);
+    })
+    .then(() => hydra.registerService())
+    .then((_serviceInfo) => {
+      serviceInfo = _serviceInfo;
+      this.initService();
+      let proms = [];
+      this.registeredPlugins.forEach(plugin => {
+        proms.push(plugin.onServiceReady());
+      });
+      return Q.all(proms);
+    })
+    .then(() => {
+      resolve(serviceInfo);
+      this.ready.resolve();
+    })
+    .catch((err) => {
+      this.ready.reject(err);
+      process.emit('cleanup');
+      reject(err);
+    });
   }
 
   /**
