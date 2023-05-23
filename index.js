@@ -66,6 +66,7 @@ class HydraExpress {
     this.testMode = false;
     this.appLogger = defaultLogger();
     this.registeredPlugins = [];
+    this.ready = new Promise();
   }
 
   /**
@@ -299,23 +300,20 @@ class HydraExpress {
         this.config = config;
         return Promise.series(this.registeredPlugins, (plugin) => plugin.setConfig(config));
       })
-      .catch((err) => {
-        this.log('error', {err});
-        process.exit(1);
-      })
       .then(() => hydra.registerService())
       .then((_serviceInfo) => {
         serviceInfo = _serviceInfo;
-        this.log('start', `${hydra.getServiceName()} (v.${hydra.getInstanceVersion()}) server listening on port ${this.config.hydra.servicePort}`);
-        this.log('info', `Using environment: ${this.config.environment}`);
         this.initService();
         return Promise.series(this.registeredPlugins, (plugin) => plugin.onServiceReady());
       })
-      .then(() => Promise.delay(2000))
-      .then(() => resolve(serviceInfo))
+      .then(() => {
+        resolve(serviceInfo);
+        this.ready.resolve();
+      })
       .catch((err) => {
-        this.log('error', {err});
+        this.ready.reject(err);
         process.emit('cleanup');
+        reject(err);
       });
   }
 
@@ -343,15 +341,13 @@ class HydraExpress {
     * @description Fatal error handler.
     * @param {function} err - error handler function
     */
-    let doOnce = 1;
+    let cleanupDone = false;
     process.on('cleanup', () => {
-      if (doOnce === 1) {
-        doOnce += 1;
+      if (!cleanupDone) {
+        cleanupDone = true;
+        // Unsure about the arbitrary 1 second. - CH
         setTimeout(() => {
-          this._shutdown()
-            .then(() => {
-              process.exit(1);
-            });
+          this._shutdown();
         }, 1000);
       }
     });
@@ -449,9 +445,7 @@ class HydraExpress {
     */
     process.on('SIGTERM', () => {
       this.log('error', `Process ${process.pid} recieved SIGTERM - attempting graceful shutdown`);
-      this.server.close(() => {
-        process.exit(0);
-      });
+      this.server.close();
     });
 
     /**
