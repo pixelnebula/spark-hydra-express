@@ -52,7 +52,6 @@ class HydraExpress {
     this.appLogger = defaultLogger();
     this.registeredPlugins = [];
     this.ready = Q.defer(); // Resolved when ready for work.
-    this.cleanedUp = Q.defer(); // Resolved when cleanup done and ready for process exit.
   }
 
   /**
@@ -343,10 +342,7 @@ class HydraExpress {
         cleanupDone = true;
         // Unsure about the arbitrary 1 second. - CH
         setTimeout(() => {
-          this._shutdown()
-          .finally(() => {
-            this.cleanedUp.resolve();
-          })
+          this._shutdown();
         }, 1000);
         // Safety handler to ensure we exit eventually.
         setTimeout(() => {
@@ -369,14 +365,6 @@ class HydraExpress {
         error: err.name,
         stack: stack
       }));
-      process.emit('cleanup');
-    });
-    process.on('SIGTERM', () => {
-      this.log('fatal', 'Received SIGTERM');
-      process.emit('cleanup');
-    });
-    process.on('SIGINT', () => {
-      this.log('fatal', 'Received SIGINT');
       process.emit('cleanup');
     });
 
@@ -443,13 +431,6 @@ class HydraExpress {
       }
     });
 
-    /**
-    * On SIGTERM perform graceful shutdown.
-    */
-    process.on('SIGTERM', () => {
-      this.log('error', `Process ${process.pid} recieved SIGTERM - attempting graceful shutdown`);
-      this.server.close();
-    });
 
     /**
      * @description listen handler for server.
