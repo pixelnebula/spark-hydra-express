@@ -180,7 +180,10 @@ class HydraExpress {
   */
   _shutdown() {
     return new Promise((resolve, reject) => {
-      this.server.close(() => {
+      // A 1-second delay allows for active requests to finish before we kill the server.
+      // (A vanilla Hydra-express feature)
+      setTimeout(() => {
+        this.server.close(() => {
         this.log('error', 'Service is shutting down.');
         hydra.shutdown()
           .then((result) => {
@@ -189,7 +192,8 @@ class HydraExpress {
           .catch((err) => {
             reject(err);
           });
-      });
+        });
+      }, 1000);
     });
   }
 
@@ -340,10 +344,7 @@ class HydraExpress {
     process.on('cleanup', () => {
       if (!cleanupDone) {
         cleanupDone = true;
-        // Unsure about the arbitrary 1 second. - CH
-        setTimeout(() => {
-          this._shutdown();
-        }, 1000);
+        this._shutdown();
         // Safety handler to ensure we exit eventually.
         setTimeout(() => {
           process.exit();
