@@ -1,6 +1,6 @@
 {
   "name": "hydra-express",
-  "version": "1.9.5",
+  "version": "1.10.0",
   "description": "A module which wraps Hydra and ExpressJS to provide an out of the box microservice which can support API routes and handlers.",
   "author": {
     "name": "Carlos Justiniano"
@@ -10,19 +10,18 @@
     "test": "mocha specs --reporter spec"
   },
   "engines": {
-    "node": ">=6.2.1"
+    "node": "16.13.0"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pnxtech/hydra-express.git"
+    "url": "git+https://github.com/pixelnebula/spark-hydra-express.git"
   },
   "bin": {
     "hydra-express": "index.js"
   },
   "homepage": "https://github.com/pnxtech/hydra-express#readme",
   "dependencies": {
-    "bluebird": "3.7.2",
     "body-parser": "1.20.0",
     "cors": "2.8.5",
     "debug": "3.1.0",
@@ -30,6 +29,7 @@
     "helmet": "4.1.1",
     "hydra": "1.9.3",
     "moment": "2.29.3",
+    "q": "^1.5.1",
     "response-time": "2.3.2"
   },
   "devDependencies": {

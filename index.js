@@ -6,22 +6,7 @@
 'use strict';
 
 const debug = require('debug')('hydra-express');
-
-const Promise = require('bluebird');
-Promise.config({
-  // Enables all warnings except forgotten return statements.
-  warnings: {
-    wForgottenReturn: false
-  }
-});
-
-Promise.series = (iterable, action) => {
-  return Promise.mapSeries(
-    iterable.map(action),
-    (value, index, _length) => value || iterable[index].name || null
-  );
-};
-
+const Q = require('q');
 const hydra = require('hydra');
 const Utils = hydra.getUtilsHelper();
 const ServerResponse = hydra.getServerResponseHelper();
@@ -66,6 +51,7 @@ class HydraExpress {
     this.testMode = false;
     this.appLogger = defaultLogger();
     this.registeredPlugins = [];
+    this.ready = Q.defer(); // Resolved when ready for work.
   }
 
   /**
@@ -75,7 +61,9 @@ class HydraExpress {
    * @return {object} - Promise which will resolve when all plugins are registered
    */
   use(...plugins) {
-    return Promise.series(plugins, (plugin) => this._registerPlugin(plugin));
+    let proms = [];
+    _.each(plugins, (plugin) => proms.push(this._registerPlugin(plugin)));
+    return Q.all(proms);
   }
 
   /**
@@ -192,7 +180,10 @@ class HydraExpress {
   */
   _shutdown() {
     return new Promise((resolve, reject) => {
-      this.server.close(() => {
+      // A 1-second delay allows for active requests to finish before we kill the server.
+      // (A vanilla Hydra-express feature)
+      setTimeout(() => {
+        this.server.close(() => {
         this.log('error', 'Service is shutting down.');
         hydra.shutdown()
           .then((result) => {
@@ -201,7 +192,8 @@ class HydraExpress {
           .catch((err) => {
             reject(err);
           });
-      });
+        });
+      }, 1000);
     });
   }
 
@@ -292,31 +284,36 @@ class HydraExpress {
   * @private
   * @return {undefined}
   */
-  start(resolve, _reject) {
+  start(resolve, reject) {
     let serviceInfo;
     return hydra.init(this.config, this.testMode)
-      .then((config) => {
-        this.config = config;
-        return Promise.series(this.registeredPlugins, (plugin) => plugin.setConfig(config));
-      })
-      .catch((err) => {
-        this.log('error', {err});
-        process.exit(1);
-      })
-      .then(() => hydra.registerService())
-      .then((_serviceInfo) => {
-        serviceInfo = _serviceInfo;
-        this.log('start', `${hydra.getServiceName()} (v.${hydra.getInstanceVersion()}) server listening on port ${this.config.hydra.servicePort}`);
-        this.log('info', `Using environment: ${this.config.environment}`);
-        this.initService();
-        return Promise.series(this.registeredPlugins, (plugin) => plugin.onServiceReady());
-      })
-      .then(() => Promise.delay(2000))
-      .then(() => resolve(serviceInfo))
-      .catch((err) => {
-        this.log('error', {err});
-        process.emit('cleanup');
+    .then((config) => {
+      this.config = config;
+      let proms = [];
+      this.registeredPlugins.forEach(plugin => {
+        proms.push(plugin.setConfig(config));
       });
+      return Q.all(proms);
+    })
+    .then(() => hydra.registerService())
+    .then((_serviceInfo) => {
+      serviceInfo = _serviceInfo;
+      this.initService();
+      let proms = [];
+      this.registeredPlugins.forEach(plugin => {
+        proms.push(plugin.onServiceReady());
+      });
+      return Q.all(proms);
+    })
+    .then(() => {
+      resolve(serviceInfo);
+      this.ready.resolve();
+    })
+    .catch((err) => {
+      this.ready.reject(err);
+      process.emit('cleanup');
+      reject(err);
+    });
   }
 
   /**
@@ -343,16 +340,15 @@ class HydraExpress {
     * @description Fatal error handler.
     * @param {function} err - error handler function
     */
-    let doOnce = 1;
+    let cleanupDone = false;
     process.on('cleanup', () => {
-      if (doOnce === 1) {
-        doOnce += 1;
+      if (!cleanupDone) {
+        cleanupDone = true;
+        this._shutdown();
+        // Safety handler to ensure we exit eventually.
         setTimeout(() => {
-          this._shutdown()
-            .then(() => {
-              process.exit(1);
-            });
-        }, 1000);
+          process.exit();
+        }, 30000); // 30s is default k8s grace period.
       }
     });
     process.on('unhandledRejection', (reason, _p) => {
@@ -370,14 +366,6 @@ class HydraExpress {
         error: err.name,
         stack: stack
       }));
-      process.emit('cleanup');
-    });
-    process.on('SIGTERM', () => {
-      this.log('fatal', 'Received SIGTERM');
-      process.emit('cleanup');
-    });
-    process.on('SIGINT', () => {
-      this.log('fatal', 'Received SIGINT');
       process.emit('cleanup');
     });
 
@@ -444,15 +432,6 @@ class HydraExpress {
       }
     });
 
-    /**
-    * On SIGTERM perform graceful shutdown.
-    */
-    process.on('SIGTERM', () => {
-      this.log('error', `Process ${process.pid} recieved SIGTERM - attempting graceful shutdown`);
-      this.server.close(() => {
-        process.exit(0);
-      });
-    });
 
     /**
      * @description listen handler for server.
