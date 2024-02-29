@@ -17,7 +17,6 @@ const cors = require('cors');
 const express = require('express');
 const helmet = require('helmet');
 const http = require('http');
-const moment = require('moment');
 const path = require('path');
 const responseTime = require('response-time');
 
@@ -372,7 +371,7 @@ class HydraExpress {
     /**
     * Security.
     */
-    const ninetyDaysInMilliseconds = moment.duration(90, 'days').asMilliseconds();
+    const ninetyDaysInMilliseconds = 7776000000;
     app.use(helmet());
     app.use(helmet.hidePoweredBy({setTo: `${hydra.getServiceName()}/${hydra.getInstanceVersion()}`}));
     app.use(helmet.hsts({maxAge: ninetyDaysInMilliseconds}));
