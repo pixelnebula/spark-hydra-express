@@ -6,4 +6,3 @@ node_modules/
 ./properties.js
 .vscode
 yarn.lock
-package-lock.json
