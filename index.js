@@ -350,23 +350,6 @@ class HydraExpress {
         }, 30000); // 30s is default k8s grace period.
       }
     });
-    process.on('unhandledRejection', (reason, _p) => {
-      this.log('fatal', Utils.safeJSONStringify(reason));
-      console.log(reason); // necessary for full stack trace
-      process.emit('cleanup');
-    });
-    process.on('uncaughtException', (err) => {
-      let stack = err.stack;
-      delete err.__cached_trace__;
-      delete err.__previous__;
-      delete err.domain;
-      this.log('fatal', Utils.safeJSONStringify({
-        event: 'error',
-        error: err.name,
-        stack: stack
-      }));
-      process.emit('cleanup');
-    });
 
     /**
     * Security.
