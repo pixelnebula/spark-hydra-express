@@ -182,7 +182,7 @@ class HydraExpress {
       // A 1-second delay allows for active requests to finish before we kill the server.
       // (A vanilla Hydra-express feature)
       setTimeout(() => {
-        this.server.close(() => {
+        this.server?.close(() => {
         this.log('error', 'Service is shutting down.');
         hydra.shutdown()
           .then((result) => {
