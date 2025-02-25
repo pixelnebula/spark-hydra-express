@@ -18,7 +18,7 @@ const express = require('express');
 const helmet = require('helmet');
 const http = require('http');
 const path = require('path');
-const responseTime = require('response-time');
+// const responseTime = require('response-time');
 
 let app = express();
 
@@ -322,7 +322,7 @@ class HydraExpress {
    * @return {undefined}
    */
   initService() {
-    app.use(responseTime());
+    // app.use(responseTime());
 
     /**
     * @description Stamp every request with the process id that handled it.
