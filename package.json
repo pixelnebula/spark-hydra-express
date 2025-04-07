@@ -1,14 +1,12 @@
 {
   "name": "hydra-express",
-  "version": "1.10.2",
+  "version": "1.10.4",
   "description": "A module which wraps Hydra and ExpressJS to provide an out of the box microservice which can support API routes and handlers.",
   "author": {
     "name": "Carlos Justiniano"
   },
   "contributors": "https://github.com/pnxtech/hydra-express/graphs/contributors",
-  "scripts": {
-    "test": "mocha specs --reporter spec"
-  },
+  "scripts": {},
   "engines": {
     "node": "20.17.0"
   },
@@ -22,22 +20,12 @@
   },
   "homepage": "https://github.com/pnxtech/hydra-express#readme",
   "dependencies": {
-    "body-parser": "1.20.0",
+    "body-parser": "^1.20.3",
     "cors": "2.8.5",
     "debug": "3.1.0",
     "express": "^4.18.3",
     "helmet": "4.1.1",
     "hydra": "1.9.3",
-    "q": "^1.5.1",
-    "response-time": "2.3.2"
-  },
-  "devDependencies": {
-    "chai": "3.5.0",
-    "eslint": "8.13.0",
-    "eslint-config-google": "0.14.0",
-    "eslint-plugin-mocha": "10.0.4",
-    "mocha": "9.2.2",
-    "redis-mock": "0.21.0",
-    "superagent": "6.1.0"
+    "q": "^1.5.1"
   }
 }

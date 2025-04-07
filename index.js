@@ -18,7 +18,6 @@ const express = require('express');
 const helmet = require('helmet');
 const http = require('http');
 const path = require('path');
-const responseTime = require('response-time');
 
 let app = express();
 
@@ -182,7 +181,7 @@ class HydraExpress {
       // A 1-second delay allows for active requests to finish before we kill the server.
       // (A vanilla Hydra-express feature)
       setTimeout(() => {
-        this.server.close(() => {
+        this.server?.close(() => {
         this.log('error', 'Service is shutting down.');
         hydra.shutdown()
           .then((result) => {
@@ -322,8 +321,6 @@ class HydraExpress {
    * @return {undefined}
    */
   initService() {
-    app.use(responseTime());
-
     /**
     * @description Stamp every request with the process id that handled it.
     * @param {object} req - express request object
@@ -361,10 +358,10 @@ class HydraExpress {
 
     if (this.config.cors) {
       app.use(cors(Object.assign({}, this.config.cors)));
-      app.options(cors(Object.assign({}, this.config.cors)));
+      app.options('*', cors(Object.assign({}, this.config.cors)));
     } else {
       app.use(cors());
-      app.options(cors());
+      app.options('*', cors());
     }
 
     if (this.config.bodyParser) {
