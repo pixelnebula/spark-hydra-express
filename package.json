@@ -8,7 +8,8 @@
   "contributors": "https://github.com/pnxtech/hydra-express/graphs/contributors",
   "scripts": {},
   "engines": {
-    "node": "20.17.0"
+    "node": "^20.19.0",
+    "pnpm": "^10.28.0"
   },
   "license": "MIT",
   "repository": {
